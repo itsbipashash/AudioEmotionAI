@@ -1,55 +1,154 @@
-# AudioEmotionAI
-An AI-powered emotion recognition system that analyzes audio files to detect and classify human emotions using deep learning
-# Emotion Recognition from Audio Files
+# 🎙️ AudioEmotionAI — Emotion Recognition from Audio
 
-This project is designed to recognize emotions from audio files using a Convolutional Neural Network (CNN). The dataset used is the RAVDESS (Ryerson Audio-Visual Database of Emotional Speech and Song) dataset, which contains audio files of actors expressing different emotions.
+> End-to-end deep learning pipeline that classifies 8 human emotions from raw `.wav` audio files using MFCC feature engineering and a Convolutional Neural Network (CNN) — built on the RAVDESS dataset.
 
-## Project Structure
+---
 
-The project consists of the following Python scripts:
+## 📌 Project Overview
 
-1. **create.py**: Checks the dataset path and processes each folder to identify `.wav` files.
-2. **extract_features.py**: Extracts MFCC (Mel-frequency cepstral coefficients) features from the audio files and saves them along with the corresponding emotion labels.
-3. **organize_data.py**: Organizes the dataset by extracting emotion labels from the filenames.
-4. **prepare_data.py**: Prepares the data for training by reshaping, encoding labels, and splitting the dataset into training and testing sets.
-5. **train_model.py**: Trains a CNN model on the extracted features and saves the trained model.
-6. **test_model.py**: Tests the trained model on new audio files to predict emotions.
+This project addresses a real-world NLP/audio intelligence problem: detecting human emotional states from speech without relying on text content. The system processes raw audio files, extracts structured acoustic features, trains a CNN classifier, and predicts emotions on unseen audio — covering the full ML pipeline from raw data to a deployable model.
 
-## Prerequisites
+**Emotions classified:** Neutral · Calm · Happy · Sad · Angry · Fearful · Disgust · Surprised
 
-Before running the scripts, ensure you have the following installed:
+**Use cases:** Mental health monitoring, call centre sentiment analysis, voice assistants, HR interview analytics
 
-- Python 3.x
-- Libraries: `librosa`, `numpy`, `scikit-learn`, `tensorflow`, `pickle`
+---
 
-You can install the required libraries using pip:
+## 🗂️ Repository Structure
 
+```
+AudioEmotionAI/
+│
+├── create.py             # Dataset validation — scans folders, verifies .wav files
+├── organize_data.py      # Label extraction from RAVDESS filename conventions
+├── extract_features.py   # MFCC feature extraction + padding + serialization
+├── prepare_data.py       # Label encoding, reshaping, train/test split
+├── train_model.py        # CNN architecture definition, training, model saving
+├── test_model.py         # Inference on new audio files using saved model
+├── app.py                # Application entry point
+└── README.md
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Tools Used |
+|---|---|
+| Audio Processing | Python, Librosa |
+| Feature Engineering | MFCC (Mel-Frequency Cepstral Coefficients), NumPy |
+| Deep Learning | TensorFlow, Keras (Sequential CNN) |
+| Data Preprocessing | Scikit-learn (label encoding, train/test split) |
+| Serialization | Pickle |
+| Dataset | RAVDESS (Ryerson Audio-Visual Database) |
+
+---
+
+## 🔍 Pipeline Walkthrough
+
+### 1. Dataset Validation (`create.py`)
+- Scans the RAVDESS dataset directory structure (24 actor folders)
+- Verifies `.wav` file presence and flags missing or corrupted entries
+- Ensures clean input before feature extraction begins
+
+### 2. Label Extraction (`organize_data.py`)
+- Parses RAVDESS filename conventions to extract emotion labels
+- RAVDESS encodes emotion as the 3rd segment of the filename (e.g. `03-01-**05**-01-01-01-01.wav` = Angry)
+- Maps numeric codes to 8 emotion classes
+
+### 3. Feature Engineering (`extract_features.py`)
+- Loads each `.wav` file using **Librosa** with `kaiser_fast` resampling for efficiency
+- Extracts **40 MFCC coefficients** per audio file — capturing timbral and tonal characteristics relevant to emotion
+- Applies **fixed-length padding/truncation** to 100 time steps, ensuring uniform input shape `(40, 100)` for the CNN
+- Serializes extracted features and labels to `features.pkl` and `labels.pkl` using Pickle
+
+### 4. Data Preparation (`prepare_data.py`)
+- Reshapes feature arrays to `(samples, 40, 100, 1)` — adding a channel dimension for Conv2D input
+- Encodes emotion labels using **one-hot encoding** (8 classes)
+- Splits data into **80% training / 20% test** sets using Scikit-learn's `train_test_split`
+- Saves processed splits to `train_test_data.pkl`
+
+### 5. Model Training (`train_model.py`)
+
+**CNN Architecture:**
+```
+Input: (40, 100, 1)
+→ Conv2D(32 filters, 3×3, ReLU)
+→ MaxPooling2D(2×2)
+→ Conv2D(64 filters, 3×3, ReLU)
+→ MaxPooling2D(2×2)
+→ Flatten
+→ Dense(128, ReLU)
+→ Dropout(0.5)
+→ Dense(8, Softmax)  ← output: 8 emotion classes
+```
+
+- Compiled with **Adam optimizer** (lr=0.001) and **categorical cross-entropy** loss
+- Trained for **20 epochs** with batch size 32 and validation monitoring
+- Saved as `emotion_model.h5` for reuse
+
+### 6. Inference (`test_model.py`)
+- Loads the saved `emotion_model.h5`
+- Accepts new `.wav` files, applies the same feature extraction pipeline
+- Outputs predicted emotion label per audio file
+
+---
+
+## 📈 Key Technical Decisions
+
+| Decision | Reasoning |
+|---|---|
+| MFCC over raw waveform | MFCCs compress audio into compact, perceptually meaningful features that capture speech patterns relevant to emotion |
+| Fixed padding to 100 time steps | Ensures consistent CNN input shape without losing important temporal information for most speech samples |
+| Conv2D over Conv1D | Treats the MFCC matrix as a 2D image — spatial filters capture patterns across both frequency (40 coefficients) and time dimensions |
+| Dropout(0.5) | Prevents overfitting given the moderate dataset size |
+| One-hot encoding | Required for `categorical_crossentropy` loss with multi-class softmax output |
+
+---
+
+## 🚀 How to Run
+
+**1. Install dependencies**
+```bash
 pip install librosa numpy scikit-learn tensorflow
-Dataset
-The RAVDESS dataset should be placed in the following directory:
-##C:\Users\dell\Documents\ravdess_data\audio_speech_actors_01-24
-If your dataset is located elsewhere, update the DATASET_PATH variable in the scripts accordingly.
+```
 
-Usage
-Extract Features: Run extract_features.py to extract MFCC features from the audio files and save them as features.pkl and labels.pkl.
-Prepare Data: Run prepare_data.py to preprocess the data and split it into training and testing sets. The processed data will be saved as train_test_data.pkl.
-Train Model: Run train_model.py to train the CNN model on the preprocessed data. The trained model will be saved as emotion_model.h5.
-Test Model: Run test_model.py to test the trained model on new audio files. The script will predict the emotion for each .wav file in the specified folder.
-Results
-The model predicts one of the following emotions for each audio file:
+**2. Set up dataset**
 
-1: Neutral
+Download the [RAVDESS dataset](https://zenodo.org/record/1188976) and update `DATASET_PATH` in each script to match your local path.
 
-2: Calm
+**3. Run the pipeline in order**
+```bash
+python create.py           # Validate dataset
+python organize_data.py    # Extract labels
+python extract_features.py # Extract MFCC features
+python prepare_data.py     # Prepare train/test data
+python train_model.py      # Train CNN
+python test_model.py       # Predict on new audio
+```
 
-3: Happy
+---
 
-4: Sad
+## 📂 Output Files
 
-5: Angry
+| File | Description |
+|---|---|
+| `features.pkl` | Serialized MFCC feature arrays |
+| `labels.pkl` | Serialized emotion labels |
+| `train_test_data.pkl` | Preprocessed train/test splits |
+| `emotion_model.h5` | Trained CNN model weights |
 
-6: Fearful
+---
 
-7: Disgust
+## 👤 Author
 
-8: Surprised
+**Bipasha Sadhukhan**
+[LinkedIn](#) · [GitHub](https://github.com/itsbipashash) · [Portfolio](#)
+
+> *Built as part of an AI/ML internship to demonstrate end-to-end deep learning pipeline design — from raw audio ingestion through feature engineering to a trained deployable model.*
+
+---
+
+## 📜 Dataset Credit
+
+RAVDESS: Livingstone SR, Russo FA (2018) *The Ryerson Audio-Visual Database of Emotional Speech and Song (RAVDESS).* PLoS ONE. [DOI: 10.1371/journal.pone.0196391](https://doi.org/10.1371/journal.pone.0196391)
